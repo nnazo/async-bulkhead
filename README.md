@@ -17,6 +17,11 @@ async-bulkhead = { version = "0.1", features = ["tokio"] }
 async-bulkhead = { version = "0.1", features = ["async-std"] }
 ```
 
+```toml
+[dependencies]
+async-bulkhead = { version = "0.1", features = ["smol"] }
+```
+
 ## License
 
 Licensed under either of
