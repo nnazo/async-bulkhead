@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+default = ["tokio"]
 tokio = ["tokio1/sync", "tokio1/time"]
 async-std = ["async-lock", "async-std1/futures-lite"]
+smol = ["async-lock", "smol-timeout"]
 
 [dependencies]
 tokio1 = { package = "tokio", version = "1", default-features = false, optional = true }
@@ -15,3 +17,4 @@ futures-lite = "1"
 thiserror = "1"
 async-lock = { version = "2", optional = true }
 async-std1 = { package = "async-std", version = "1", optional = true }
+smol-timeout = { version = "0.6", optional = true }
