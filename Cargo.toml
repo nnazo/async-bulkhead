@@ -12,9 +12,9 @@ async-std = ["async-lock", "async-std1/futures-lite"]
 smol = ["async-lock", "smol-timeout"]
 
 [dependencies]
-tokio1 = { package = "tokio", version = "1", default-features = false, optional = true }
 futures-lite = "1"
 thiserror = "1"
+tokio1 = { package = "tokio", version = "1", default-features = false, optional = true }
 async-lock = { version = "2", optional = true }
 async-std1 = { package = "async-std", version = "1", optional = true }
 smol-timeout = { version = "0.6", optional = true }

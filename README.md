@@ -7,19 +7,24 @@ This crate provies utilities for using the Bulkhead resiliency pattern in your a
 ## Usage
 
 Add one of the following to your `Cargo.toml` depending on your async runtime:
+
+If you are using Tokio, the `tokio` feature is enabled by default so you
+can specify the dependency as follows:
 ```toml
 [dependencies]
-async-bulkhead = { version = "0.1", features = ["tokio"] }
+async-bulkhead = "0.1"
+```
+
+For `async-std` or `smol`, use the following:
+
+```toml
+[dependencies]
+async-bulkhead = { version = "0.1", default-features = false, features = ["async-std"] }
 ```
 
 ```toml
 [dependencies]
-async-bulkhead = { version = "0.1", features = ["async-std"] }
-```
-
-```toml
-[dependencies]
-async-bulkhead = { version = "0.1", features = ["smol"] }
+async-bulkhead = { version = "0.1", default-features = false, features = ["smol"] }
 ```
 
 ## License
