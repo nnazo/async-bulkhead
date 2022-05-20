@@ -129,5 +129,11 @@ impl Bulkheads {
     }
 }
 
+impl Default for Bulkheads {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {}
