@@ -27,24 +27,34 @@ pub enum BulkheadError {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct BulkheadConfig {
+pub struct BulkheadBuilder {
     max_concurrent_calls: usize,
     max_wait_duration: Duration,
 }
 
-impl BulkheadConfig {
-    pub fn with_max_concurrent_calls(&mut self, max_concurrent_calls: usize) -> &mut Self {
+impl BulkheadBuilder {
+    pub fn max_concurrent_calls(mut self, max_concurrent_calls: usize) -> Self {
         self.max_concurrent_calls = max_concurrent_calls;
         self
     }
 
-    pub fn with_max_wait_duration(&mut self, max_wait_duration: Duration) -> &mut Self {
+    pub fn max_wait_duration(mut self, max_wait_duration: Duration) -> Self {
         self.max_wait_duration = max_wait_duration;
         self
     }
+
+    pub fn build(self) -> Bulkhead {
+        Bulkhead {
+            #[cfg(feature = "tokio")]
+            max_concurrent_calls: Arc::new(tokio::sync::Semaphore::new(self.max_concurrent_calls)),
+            #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
+            max_concurrent_calls: Arc::new(async_lock::Semaphore::new(self.max_concurrent_calls)),
+            max_wait_duration: self.max_wait_duration,
+        }
+    }
 }
 
-impl Default for BulkheadConfig {
+impl Default for BulkheadBuilder {
     fn default() -> Self {
         Self {
             max_concurrent_calls: 25,
@@ -63,18 +73,12 @@ pub struct Bulkhead {
 }
 
 impl Bulkhead {
-    pub fn new(config: BulkheadConfig) -> Self {
-        let BulkheadConfig {
-            max_concurrent_calls,
-            max_wait_duration,
-        } = config;
-        Self {
-            #[cfg(feature = "tokio")]
-            max_concurrent_calls: Arc::new(tokio::sync::Semaphore::new(max_concurrent_calls)),
-            #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
-            max_concurrent_calls: Arc::new(async_lock::Semaphore::new(max_concurrent_calls)),
-            max_wait_duration,
-        }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn builder() -> BulkheadBuilder {
+        BulkheadBuilder::default()
     }
 
     #[cfg(feature = "tokio")]
@@ -111,6 +115,19 @@ impl Bulkhead {
     }
 }
 
+impl Default for Bulkhead {
+    fn default() -> Self {
+        let max_concurrent_calls = 25;
+        Self {
+            #[cfg(feature = "tokio")]
+            max_concurrent_calls: Arc::new(tokio::sync::Semaphore::new(max_concurrent_calls)),
+            #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
+            max_concurrent_calls: Arc::new(async_lock::Semaphore::new(max_concurrent_calls)),
+            max_wait_duration: Duration::from_millis(1),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Bulkheads(HashMap<String, Bulkhead>);
 
@@ -142,8 +159,7 @@ mod tests {
     use assert_matches::assert_matches;
     use tokio1 as tokio;
 
-    async fn two_calls_test_helper(config: BulkheadConfig) -> Result<(), BulkheadError> {
-        let bulkhead = Bulkhead::new(config);
+    async fn two_calls_test_helper(bulkhead: Bulkhead) -> Result<(), BulkheadError> {
         let bulkhead_clone = bulkhead.clone();
         let handle = tokio::spawn(async move {
             let sleep_fut = tokio::time::sleep(Duration::from_millis(50));
@@ -159,25 +175,25 @@ mod tests {
 
     #[tokio::test]
     pub async fn times_out() {
-        let mut config = BulkheadConfig::default();
-        config.with_max_concurrent_calls(1);
-        let result = two_calls_test_helper(config).await;
+        let bulkhead = Bulkhead::builder().max_concurrent_calls(1).build();
+        let result = two_calls_test_helper(bulkhead).await;
         assert_matches!(result, Err(BulkheadError::Timeout(_)));
     }
 
     #[tokio::test]
     pub async fn doesnt_time_out() {
-        let bulkhead = Bulkhead::new(BulkheadConfig::default());
+        let bulkhead = Bulkhead::default();
         let result = bulkhead.limit(async {}).await;
         assert_matches!(result, Ok(_));
     }
 
     #[tokio::test]
     pub async fn doesnt_time_out_long() {
-        let mut config = BulkheadConfig::default();
-        config.with_max_concurrent_calls(1);
-        config.with_max_wait_duration(Duration::from_secs(2));
-        let result = two_calls_test_helper(config).await;
+        let bulkhead = Bulkhead::builder()
+            .max_concurrent_calls(1)
+            .max_wait_duration(Duration::from_secs(2))
+            .build();
+        let result = two_calls_test_helper(bulkhead).await;
         assert_matches!(result, Ok(_));
     }
 }
