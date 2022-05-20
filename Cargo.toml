@@ -18,3 +18,7 @@ thiserror = "1"
 async-lock = { version = "2", optional = true }
 async-std1 = { package = "async-std", version = "1", optional = true }
 smol-timeout = { version = "0.6", optional = true }
+
+[dev-dependencies]
+tokio1 = { package = "tokio", version = "1", default-features = false, features = ["macros", "rt", "rt-multi-thread", "time"] }
+assert_matches = "1.5"

@@ -136,4 +136,48 @@ impl Default for Bulkheads {
 }
 
 #[cfg(test)]
-mod tests {}
+#[cfg(feature = "tokio")]
+mod tests {
+    use super::*;
+    use assert_matches::assert_matches;
+    use tokio1 as tokio;
+
+    async fn two_calls_test_helper(config: BulkheadConfig) -> Result<(), BulkheadError> {
+        let bulkhead = Bulkhead::new(config);
+        let bulkhead_clone = bulkhead.clone();
+        let handle = tokio::spawn(async move {
+            let sleep_fut = tokio::time::sleep(Duration::from_millis(50));
+            bulkhead_clone.limit(sleep_fut).await
+        });
+        let result_fut = async {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            bulkhead.limit(async {}).await
+        };
+        let (result, _) = tokio::join!(result_fut, handle);
+        result
+    }
+
+    #[tokio::test]
+    pub async fn times_out() {
+        let mut config = BulkheadConfig::default();
+        config.with_max_concurrent_calls(1);
+        let result = two_calls_test_helper(config).await;
+        assert_matches!(result, Err(BulkheadError::Timeout(_)));
+    }
+
+    #[tokio::test]
+    pub async fn doesnt_time_out() {
+        let bulkhead = Bulkhead::new(BulkheadConfig::default());
+        let result = bulkhead.limit(async {}).await;
+        assert_matches!(result, Ok(_));
+    }
+
+    #[tokio::test]
+    pub async fn doesnt_time_out_long() {
+        let mut config = BulkheadConfig::default();
+        config.with_max_concurrent_calls(1);
+        config.with_max_wait_duration(Duration::from_secs(2));
+        let result = two_calls_test_helper(config).await;
+        assert_matches!(result, Ok(_));
+    }
+}
