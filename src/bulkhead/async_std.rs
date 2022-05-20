@@ -2,6 +2,7 @@ use super::{Bulkhead, BulkheadError};
 use async_std1 as async_std;
 use futures_lite::future::Future;
 
+#[doc(cfg(feature = "async-std"))]
 impl Bulkhead {
     pub async fn limit<F, R>(&self, f: F) -> Result<R, BulkheadError>
     where

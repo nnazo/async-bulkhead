@@ -2,6 +2,7 @@ use super::{Bulkhead, BulkheadError};
 use futures_lite::future::Future;
 use tokio1 as tokio;
 
+#[doc(cfg(feature = "tokio"))]
 impl Bulkhead {
     pub async fn limit<F, R>(&self, f: F) -> Result<R, BulkheadError>
     where

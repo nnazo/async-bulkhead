@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["tokio"]
 tokio = ["tokio1/sync", "tokio1/time"]
@@ -22,3 +26,4 @@ smol-timeout = { version = "0.6", optional = true }
 [dev-dependencies]
 tokio1 = { package = "tokio", version = "1", default-features = false, features = ["macros", "rt", "rt-multi-thread", "time"] }
 assert_matches = "1.5"
+
