@@ -3,7 +3,7 @@
 [![CI](https://github.com/nnazo/async-bulkhead/workflows/Main/badge.svg)](https://github.com/nnazo/async-bulkhead/actions)
 [![Documentation](https://docs.rs/async-bulkhead/badge.svg)](https://docs.rs/async-bulkhead)
 [![Latest Version](https://img.shields.io/crates/v/async-bulkhead.svg)](https://crates.io/crates/async-bulkhead)
-![MIT or Apache 2.0 licensed](https://img.shields.io/crates/l/async-bulkhead.svg)
+![MIT or Apache 2.0 licensed](https://img.shields.io/crates/l/async-bulkhead)
 
 An async semaphore-based Bulkhead (client-side resiliency pattern) implementation.
 
