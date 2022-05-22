@@ -2,28 +2,31 @@
 name = "async-bulkhead"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+repository = "https://github.com/nnazo/async-bulkhead"
+documentation = "https://docs.rs/async-bulkhead"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+description = """
+An async semaphore-based bulkhead implementation
+"""
+keywords = ["bulkhead", "resiliency", "circuit breaker", "patterns"]
 
 [features]
-default = ["tokio"]
-tokio = ["tokio1/sync", "tokio1/time"]
-async-std = ["async-lock", "async-std1/futures-lite"]
-smol = ["async-lock", "smol-timeout"]
+default = ["rt-tokio"]
+rt-tokio = ["tokio/sync", "tokio/time"]
+rt-async-std = ["async-std/futures-lite"]
+rt-smol = ["smol-timeout"]
 
 [dependencies]
 futures-lite = "1"
 thiserror = "1"
-tokio1 = { package = "tokio", version = "1", default-features = false, optional = true }
-async-lock = { version = "2", optional = true }
-async-std1 = { package = "async-std", version = "1", optional = true }
+async-lock = "2"
+cfg-if = "1"
+tokio = { version = "1", default-features = false, optional = true }
+async-std = { version = "1", optional = true }
 smol-timeout = { version = "0.6", optional = true }
 
 [dev-dependencies]
-tokio1 = { package = "tokio", version = "1", default-features = false, features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio = { version = "1", default-features = false, features = ["macros", "rt", "rt-multi-thread", "time"] }
 assert_matches = "1.5"
 

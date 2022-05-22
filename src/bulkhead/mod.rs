@@ -2,36 +2,37 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use async_lock::Semaphore;
+use cfg_if::cfg_if;
 
-#[cfg(feature = "tokio")]
-mod tokio;
+cfg_if!(
+    if #[cfg(all(not(any(feature = "rt-async-std", feature = "rt-smol")), feature = "rt-tokio"))] {
+        mod tokio;
+    } else if #[cfg(all(not(any(feature = "rt-tokio", feature = "rt-smol")), feature = "rt-async-std"))] {
+        mod async_std;
+    } else if #[cfg(all(not(any(feature = "rt-tokio", feature = "rt-async-std")), feature = "rt-smol"))] {
+        mod smol;
+    } else {
+        compile_error!("you must enable one feature between `rt-tokio`, `rt-async-std` and `rt-smol`");
+    }
+);
 
-#[cfg(all(not(any(feature = "tokio", feature = "smol")), feature = "async-std"))]
-mod async_std;
-
-#[cfg(all(not(any(feature = "tokio", feature = "async-std")), feature = "smol"))]
-mod smol;
-
-#[cfg(test)]
-#[cfg(feature = "tokio")]
+#[cfg(all(test, feature = "rt-tokio"))]
 mod tests;
 
+/// The error type for operations with [`Bulkhead`].
 #[derive(Debug, Error)]
 pub enum BulkheadError {
-    #[cfg(feature = "tokio")]
-    #[error("the bulkhead semaphore has been closed")]
-    Acquire(#[from] tokio1::sync::AcquireError),
+    /// The error returned when the bulkhead semaphore permit could not be acquired before the
+    /// specified maximum wait duration.
     #[error("the maximum number of concurrent calls is met")]
-    Timeout(
-        #[cfg(feature = "tokio")]
-        #[from]
-        tokio1::time::error::Elapsed,
-        #[cfg(all(not(feature = "tokio"), feature = "async-std"))]
-        #[from]
-        async_std1::future::TimeoutError,
-    ),
+    Timeout,
+    /// The error returned when a non-positive maximum number of concurrent calls is specified
+    #[error("max concurrent calls must be at least 1")]
+    InvalidConcurrentCalls,
 }
 
+/// A builder type for a [`Bulkhead`]
 #[derive(Debug, Copy, Clone)]
 pub struct BulkheadBuilder {
     max_concurrent_calls: usize,
@@ -39,23 +40,34 @@ pub struct BulkheadBuilder {
 }
 
 impl BulkheadBuilder {
+    /// Specifies the maximum number of concurrent calls the bulkhead will allow. 
+    /// 
+    /// Defaults to 25.
     pub fn max_concurrent_calls(mut self, max_concurrent_calls: usize) -> Self {
         self.max_concurrent_calls = max_concurrent_calls;
         self
     }
 
+    /// Specifies the maximum wait duration for the bulkhead's semaphore guard to be acquired.
+    /// 
+    /// Defaults to `Duration::from_millis(1)`.
     pub fn max_wait_duration(mut self, max_wait_duration: Duration) -> Self {
         self.max_wait_duration = max_wait_duration;
         self
     }
 
-    pub fn build(self) -> Bulkhead {
-        Bulkhead {
-            #[cfg(feature = "tokio")]
-            max_concurrent_calls: Arc::new(tokio1::sync::Semaphore::new(self.max_concurrent_calls)),
-            #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
-            max_concurrent_calls: Arc::new(async_lock1::Semaphore::new(self.max_concurrent_calls)),
-            max_wait_duration: self.max_wait_duration,
+    /// Builds the [`Bulkhead`]. This returns an `Err(BulkheadError::InvalidConcurrentCalls)`
+    /// value if the number of concurrent calls is not positive.
+    pub fn build(self) -> Result<Bulkhead, BulkheadError> {
+        if self.max_concurrent_calls > 0 {
+            Ok(Bulkhead {
+                max_concurrent_calls: Arc::new(Semaphore::new(
+                    self.max_concurrent_calls,
+                )),
+                max_wait_duration: self.max_wait_duration,
+            })
+        } else {
+            Err(BulkheadError::InvalidConcurrentCalls)
         }
     }
 }
@@ -69,61 +81,66 @@ impl Default for BulkheadBuilder {
     }
 }
 
+/// A semaphore-based bulkhead for limiting the number of concurrent
+/// calls to a resource.
+/// 
+/// This type can be safely cloned and sent across threads while
+/// maintaining the correct number of allowed concurrent calls.
 #[derive(Debug, Clone)]
 pub struct Bulkhead {
-    #[cfg(feature = "tokio")]
-    max_concurrent_calls: Arc<tokio1::sync::Semaphore>,
-    #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
-    max_concurrent_calls: Arc<async_lock1::Semaphore>,
+    max_concurrent_calls: Arc<Semaphore>,
     max_wait_duration: Duration,
 }
 
 impl Bulkhead {
+    /// Creates a new bulkhead with the default configuration
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Creates a new [`BulkheadBuilder`] containing the default configuration
     pub fn builder() -> BulkheadBuilder {
         BulkheadBuilder::default()
-    }
-
-    pub fn remaining_calls(&self) -> usize {
-        self.max_concurrent_calls.available_permits()
     }
 }
 
 impl Default for Bulkhead {
     fn default() -> Self {
-        let max_concurrent_calls = 25;
+        let BulkheadBuilder { max_concurrent_calls, max_wait_duration } = BulkheadBuilder::default();
         Self {
-            #[cfg(feature = "tokio")]
-            max_concurrent_calls: Arc::new(tokio1::sync::Semaphore::new(max_concurrent_calls)),
-            #[cfg(all(not(feature = "tokio"), any(feature = "async-std", feature = "smol")))]
-            max_concurrent_calls: Arc::new(async_lock1::Semaphore::new(max_concurrent_calls)),
-            max_wait_duration: Duration::from_millis(1),
+            max_concurrent_calls: Arc::new(Semaphore::new(max_concurrent_calls)),
+            max_wait_duration,
         }
     }
 }
 
-#[derive(Debug)]
-pub struct Bulkheads(HashMap<String, Bulkhead>);
+/// A structure for tracking multiple bulkheads for different resources.
+/// 
+/// This type can be safely cloned and sent across threads while
+/// maintaining the correct number of allowed concurrent calls in each
+/// resource's corresponding bulkhead.
+#[derive(Debug, Clone)]
+pub struct BulkheadRegistry(HashMap<String, Bulkhead>);
 
-impl Bulkheads {
+impl BulkheadRegistry {
+    /// Creates an empty registry
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn register(&mut self, name: String, bulkhead: Bulkhead) -> &mut Self {
-        self.0.insert(name, bulkhead);
+    /// Adds a new bulkhead for the specified resource to the registry
+    pub fn register(&mut self, resource: String, bulkhead: Bulkhead) -> &mut Self {
+        self.0.insert(resource, bulkhead);
         self
     }
 
-    pub fn get(&self, name: &str) -> Option<&Bulkhead> {
-        self.0.get(name)
+    /// Retrieves the requested resource bulkhead from the registry
+    pub fn get(&self, resource: &str) -> Option<&Bulkhead> {
+        self.0.get(resource)
     }
 }
 
-impl Default for Bulkheads {
+impl Default for BulkheadRegistry {
     fn default() -> Self {
         Self::new()
     }

@@ -19,12 +19,12 @@ For `async-std` or `smol`, use the following:
 
 ```toml
 [dependencies]
-async-bulkhead = { version = "0.1", default-features = false, features = ["async-std"] }
+async-bulkhead = { version = "0.1", default-features = false, features = ["rt-async-std"] }
 ```
 
 ```toml
 [dependencies]
-async-bulkhead = { version = "0.1", default-features = false, features = ["smol"] }
+async-bulkhead = { version = "0.1", default-features = false, features = ["rt-smol"] }
 ```
 
 ## License
@@ -36,7 +36,7 @@ Licensed under either of
 
 at your option.
 
-#### Contribution
+### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be

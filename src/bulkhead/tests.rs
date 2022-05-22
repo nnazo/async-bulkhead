@@ -1,6 +1,7 @@
+extern crate tokio;
+
 use super::*;
 use assert_matches::assert_matches;
-use tokio1 as tokio;
 
 async fn two_calls_test_helper(bulkhead: Bulkhead) -> Result<(), BulkheadError> {
     let bulkhead_clone = bulkhead.clone();
@@ -18,9 +19,9 @@ async fn two_calls_test_helper(bulkhead: Bulkhead) -> Result<(), BulkheadError> 
 
 #[tokio::test]
 pub async fn times_out() {
-    let bulkhead = Bulkhead::builder().max_concurrent_calls(1).build();
+    let bulkhead = Bulkhead::builder().max_concurrent_calls(1).build().unwrap();
     let result = two_calls_test_helper(bulkhead).await;
-    assert_matches!(result, Err(BulkheadError::Timeout(_)));
+    assert_matches!(result, Err(BulkheadError::Timeout));
 }
 
 #[tokio::test]
@@ -35,7 +36,13 @@ pub async fn doesnt_time_out_long() {
     let bulkhead = Bulkhead::builder()
         .max_concurrent_calls(1)
         .max_wait_duration(Duration::from_secs(2))
-        .build();
+        .build().unwrap();
     let result = two_calls_test_helper(bulkhead).await;
     assert_matches!(result, Ok(_));
+}
+
+#[test]
+pub fn invalid_max_concurrent_calls() {
+    let result = Bulkhead::builder().max_concurrent_calls(0).build();
+    assert_matches!(result, Err(BulkheadError::InvalidConcurrentCalls));
 }
