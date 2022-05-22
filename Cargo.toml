@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 description = """
 An async semaphore-based bulkhead implementation
 """
-keywords = ["bulkhead", "resiliency", "circuit breaker", "patterns"]
+keywords = ["bulkhead", "resiliency", "patterns"]
 
 [features]
 default = ["rt-tokio"]
