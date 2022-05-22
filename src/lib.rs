@@ -6,13 +6,20 @@
 //! ### Example
 //! ```rust
 //! use async_bulkhead::Bulkhead;
+//! use async_bulkhead::BulkheadError;
+//! use std::time::Duration;
 //!
 //! let bulkhead = Bulkhead::builder()
 //!     .max_concurrent_calls(10)
 //!     .max_wait_duration(Duration::from_millis(100))
-//!     .build()?;
+//!     .build()
+//!     .expect("max concurrent calls not > 0");
 //!
-//! let value = bulkhead.limit(async { 10 }).await?;
+//! async {
+//!     let value = bulkhead.limit(async { 10 }).await?;
+//!     println!("{value}");
+//!     Ok::<_, BulkheadError>(())
+//! };
 //! ```
 //!
 //! ### Features
