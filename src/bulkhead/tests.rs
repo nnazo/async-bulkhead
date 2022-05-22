@@ -36,7 +36,8 @@ pub async fn doesnt_time_out_long() {
     let bulkhead = Bulkhead::builder()
         .max_concurrent_calls(1)
         .max_wait_duration(Duration::from_secs(2))
-        .build().unwrap();
+        .build()
+        .unwrap();
     let result = two_calls_test_helper(bulkhead).await;
     assert_matches!(result, Ok(_));
 }

@@ -1,9 +1,9 @@
+use async_lock::Semaphore;
+use cfg_if::cfg_if;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use async_lock::Semaphore;
-use cfg_if::cfg_if;
 
 cfg_if!(
     if #[cfg(all(not(any(feature = "rt-async-std", feature = "rt-smol")), feature = "rt-tokio"))] {
@@ -40,8 +40,8 @@ pub struct BulkheadBuilder {
 }
 
 impl BulkheadBuilder {
-    /// Specifies the maximum number of concurrent calls the bulkhead will allow. 
-    /// 
+    /// Specifies the maximum number of concurrent calls the bulkhead will allow.
+    ///
     /// Defaults to 25.
     pub fn max_concurrent_calls(mut self, max_concurrent_calls: usize) -> Self {
         self.max_concurrent_calls = max_concurrent_calls;
@@ -49,7 +49,7 @@ impl BulkheadBuilder {
     }
 
     /// Specifies the maximum wait duration for the bulkhead's semaphore guard to be acquired.
-    /// 
+    ///
     /// Defaults to `Duration::from_millis(1)`.
     pub fn max_wait_duration(mut self, max_wait_duration: Duration) -> Self {
         self.max_wait_duration = max_wait_duration;
@@ -61,9 +61,7 @@ impl BulkheadBuilder {
     pub fn build(self) -> Result<Bulkhead, BulkheadError> {
         if self.max_concurrent_calls > 0 {
             Ok(Bulkhead {
-                max_concurrent_calls: Arc::new(Semaphore::new(
-                    self.max_concurrent_calls,
-                )),
+                max_concurrent_calls: Arc::new(Semaphore::new(self.max_concurrent_calls)),
                 max_wait_duration: self.max_wait_duration,
             })
         } else {
@@ -83,7 +81,7 @@ impl Default for BulkheadBuilder {
 
 /// A semaphore-based bulkhead for limiting the number of concurrent
 /// calls to a resource.
-/// 
+///
 /// This type can be safely cloned and sent across threads while
 /// maintaining the correct number of allowed concurrent calls.
 #[derive(Debug, Clone)]
@@ -106,7 +104,10 @@ impl Bulkhead {
 
 impl Default for Bulkhead {
     fn default() -> Self {
-        let BulkheadBuilder { max_concurrent_calls, max_wait_duration } = BulkheadBuilder::default();
+        let BulkheadBuilder {
+            max_concurrent_calls,
+            max_wait_duration,
+        } = BulkheadBuilder::default();
         Self {
             max_concurrent_calls: Arc::new(Semaphore::new(max_concurrent_calls)),
             max_wait_duration,
@@ -115,7 +116,7 @@ impl Default for Bulkhead {
 }
 
 /// A structure for tracking multiple bulkheads for different resources.
-/// 
+///
 /// This type can be safely cloned and sent across threads while
 /// maintaining the correct number of allowed concurrent calls in each
 /// resource's corresponding bulkhead.

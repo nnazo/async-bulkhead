@@ -1,11 +1,11 @@
 use super::{Bulkhead, BulkheadError};
 use futures_lite::future::Future;
-use tokio::time::{timeout, error};
+use tokio::time::{error, timeout};
 
 impl Bulkhead {
     /// Limits the number of concurrent calls using a semaphore with the
     /// specified maximum concurrent calls and semaphore wait duration.
-    /// 
+    ///
     /// When the semaphore permit can't be acquired before the specified duration,
     /// the `Err(BulkheadError::Timeout)` value is returned.
     pub async fn limit<F, R>(&self, f: F) -> Result<R, BulkheadError>
