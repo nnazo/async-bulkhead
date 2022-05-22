@@ -1,8 +1,6 @@
 # async-bulkhead
 
-This crate provies utilities for using the Bulkhead resiliency pattern in your async calls.
-
-**NOTE: This crate is still in early development and has not been published to crates.io**
+An async semaphore-based Bulkhead (client-side resiliency pattern) implementation.
 
 ## Usage
 
